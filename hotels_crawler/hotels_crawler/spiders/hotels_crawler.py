@@ -7,7 +7,7 @@ from hotels_crawler.items import HotelCrawlerItem
 from hotels_crawler.database import Session
 from hotels_crawler.models import Hotel
 
-class HotelSpider(scrapy.Spider):
+class HotelCrawlerSpider(scrapy.Spider):
     name = 'hotel_crawler'
     
     def start_requests(self):
@@ -28,17 +28,16 @@ class HotelSpider(scrapy.Spider):
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to decode JSON: {e}")
 
-
     def parse_hotels(self, response):
         session = Session()
         country = response.meta.get('country')
         
-        if not os.path.exists('photos'):
-            os.makedirs('photos')
-        country_dir = f"photos/{country}"
+        images_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images')
+        if not os.path.exists(images_dir):
+            os.makedirs(images_dir)
+        country_dir = os.path.join(images_dir, country)
         if not os.path.exists(country_dir):
             os.makedirs(country_dir)
-
 
         hotels = response.css('.hotel-item')  # Update this selector if needed
         for hotel in hotels:
@@ -77,7 +76,6 @@ class HotelSpider(scrapy.Spider):
             session.commit()
 
             yield items
-            
 
     def download_image(self, img_url, path):
         try:

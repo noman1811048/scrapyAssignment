@@ -1,5 +1,5 @@
-from hotel_scraper.database import Session
-from hotel_scraper.models import Hotel
+from hotels_crawler.database import Session
+from hotels_crawler.models import Hotel
 
 class HotelScraperPipeline:
     def process_item(self, item, spider):
