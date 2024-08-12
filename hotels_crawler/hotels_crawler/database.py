@@ -13,7 +13,7 @@ try:
 except ImportError:
     # If config.py is not found, use environment variables or default values
     DB_USERNAME = os.getenv('DB_USERNAME', 'postgres')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', 'p@stgress')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'p%40stgress')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
     DB_PORT = os.getenv('DB_PORT', '5433')
     DB_NAME = os.getenv('DB_NAME', 'hotel_list')

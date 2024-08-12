@@ -21,12 +21,23 @@ class HotelCrawlerSpider(scrapy.Spider):
     def parse_destinations(self, response):
         try:
             data = json.loads(response.text)
-            countryInfo = [(item['id'], item['displayName']) for item in data['group'][0]['hotDestination']]
-            location, country = random.choice(countryInfo)
-            next_url = f"https://uk.trip.com/hotels/list?city={location}"
-            yield scrapy.Request(url=next_url, callback=self.parse_hotels, meta={'country': country})
+            
+            if 'group' in data and len(data['group']) > 0:
+                hot_destinations = data['group'][0].get('hotDestination', [])
+                if hot_destinations:
+                    countryInfo = [(item['id'], item['displayName']) for item in hot_destinations]
+                    location, country = random.choice(countryInfo)
+                    next_url = f"https://uk.trip.com/hotels/list?city={location}"
+                    yield scrapy.Request(url=next_url, callback=self.parse_hotels, meta={'country': country})
+                else:
+                    self.logger.error("No 'hotDestination' found in the data")
+            else:
+                self.logger.error("No 'group' found in the data or 'group' is empty")
+            
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to decode JSON: {e}")
+        except (KeyError, IndexError) as e:
+            self.logger.error(f"Error accessing data: {e}")
 
     def parse_hotels(self, response):
         session = Session()
@@ -39,7 +50,7 @@ class HotelCrawlerSpider(scrapy.Spider):
         if not os.path.exists(country_dir):
             os.makedirs(country_dir)
 
-        hotels = response.css('.hotel-item')  # Update this selector if needed
+        hotels = response.css('.hotel-item')  # Ensure this selector is correct
         for hotel in hotels:
             items = HotelCrawlerItem()
             title = hotel.css('.hotel-name::text').get()
