@@ -1,98 +1,47 @@
 import scrapy
 import json
-import random
-import os
-import requests
-from hotels_crawler.items import HotelCrawlerItem
-from hotels_crawler.database import Session
-from hotels_crawler.models import Hotel
+import re
+from hotels_crawler.items import HotelItem
+from pathlib import Path
 
-class HotelCrawlerSpider(scrapy.Spider):
-    name = 'hotel_crawler'
-    
+class NewHotelSpider(scrapy.Spider):
+    name = "hotels_crawler"
+
     def start_requests(self):
-        url = 'https://uk.trip.com/htls/getHotDestination'
+        start_url = "https://uk.trip.com/hotels/?locale=en-GB&curr=GBP"
         headers = {
-            'x-traceID': '1723089042493.7cfaXTHBxWn7-1723181981937-1029942597',
-            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
         }
-        yield scrapy.Request(url, method='POST', headers=headers, callback=self.parse_destinations)
-
-    def parse_destinations(self, response):
-        try:
-            data = json.loads(response.text)
-            
-            if 'group' in data and len(data['group']) > 0:
-                hot_destinations = data['group'][0].get('hotDestination', [])
-                if hot_destinations:
-                    countryInfo = [(item['id'], item['displayName']) for item in hot_destinations]
-                    location, country = random.choice(countryInfo)
-                    next_url = f"https://uk.trip.com/hotels/list?city={location}"
-                    yield scrapy.Request(url=next_url, callback=self.parse_hotels, meta={'country': country})
-                else:
-                    self.logger.error("No 'hotDestination' found in the data")
-            else:
-                self.logger.error("No 'group' found in the data or 'group' is empty")
-            
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to decode JSON: {e}")
-        except (KeyError, IndexError) as e:
-            self.logger.error(f"Error accessing data: {e}")
-
-    def parse_hotels(self, response):
-        session = Session()
-        country = response.meta.get('country')
         
-        images_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images')
-        if not os.path.exists(images_dir):
-            os.makedirs(images_dir)
-        country_dir = os.path.join(images_dir, country)
-        if not os.path.exists(country_dir):
-            os.makedirs(country_dir)
+        yield scrapy.Request(start_url, headers=headers, callback=self.parse_locations)
 
-        hotels = response.css('.hotel-item')  # Ensure this selector is correct
-        for hotel in hotels:
-            items = HotelCrawlerItem()
-            title = hotel.css('.hotel-name::text').get()
-            img_src_list = hotel.css('.hotel-image::attr(src)').getall()
-            rating = hotel.css('.hotel-rating::text').get()
-            room = hotel.css('.room-type::text').get()
-            price = hotel.css('.hotel-price::text').get()
-            location = hotel.css('.hotel-location::text').get()
-
-            for img_src in img_src_list:
-                img_name = f"{title}_{img_src.split('/')[-1]}"
-                img_path = os.path.join(country_dir, img_name)
-                self.download_image(img_src, img_path)
-
-            items['country'] = country
-            items['title'] = title
-            items['img_src_list'] = ','.join(img_src_list)
-            items['rating'] = rating
-            items['room'] = room
-            items['price'] = price
-            items['location'] = location
-
-            # Save to database
-            hotel_entry = Hotel(
-                country=country,
-                title=title,
-                img_src_list=items['img_src_list'],
-                rating=float(rating) if rating else None,
-                room=room,
-                price=float(price.replace('£', '')) if price else None,
-                location=location
-            )
-            session.add(hotel_entry)
-            session.commit()
-
-            yield items
-
-    def download_image(self, img_url, path):
+    def parse_locations(self, response):
+        script_text = response.xpath('//script[contains(text(), "window.IBU_HOTEL")]/text()').get()
         try:
-            response = requests.get(img_url)
-            with open(path, 'wb') as f:
-                f.write(response.content)
-            self.logger.info(f"Image saved to {path}")
-        except Exception as e:
-            self.logger.error(f"Failed to download {img_url}: {e}")
+            json_data = re.search(r'window\.IBU_HOTEL\s*=\s*(\{.*?\});', script_text, re.DOTALL).group(1)
+            data = json.loads(json_data)
+        except (AttributeError, json.JSONDecodeError) as e:
+            self.log(f"Error parsing JSON data: {e}")
+            return
+
+        for city_group in ['inboundCities', 'outboundCities']:
+            if city_group in data['initData']['htlsData']:
+                for city in data['initData']['htlsData'][city_group]:
+                    if city['type'] == "City":
+                        if 'recommendHotels' in city:
+                            for hotel in city['recommendHotels']:
+                                yield HotelItem(
+                                    title=hotel['hotelName'],
+                                    rating=hotel.get('rating', 'N/A'),
+                                    location=city['cityUrl'],
+                                    latitude=hotel.get('lat', 'N/A'),
+                                    longitude=hotel.get('lon', 'N/A'),
+                                    room=[amenities['name'] for amenities in hotel.get('hotelFacilityList', [])],
+                                    price=hotel.get('displayPrice', {}).get('price', 'N/A'),
+                                    img_src_list=f"https://ak-d.tripcdn.com/images{hotel.get('imgUrl', '')}"
+                                )
+
+    def close(self, reason):
+        self.log("Spider closed: " + reason)

@@ -5,7 +5,7 @@ Base = declarative_base()
 
 class Hotel(Base):
     __tablename__ = 'hotels'
-    
+
     id = Column(Integer, primary_key=True)
     country = Column(String)
     title = Column(String)
@@ -14,3 +14,6 @@ class Hotel(Base):
     room = Column(String)
     price = Column(Float)
     location = Column(String)
+    image_paths = Column(String)
+    latitude = Column(Float)
+    longitude = Column(Float)

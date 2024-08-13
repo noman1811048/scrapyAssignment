@@ -53,10 +53,9 @@ This project is a web scraper built using Scrapy to gather property information 
    pip install -r requirements.txt
    ```
 
-4. **Start a Scrapy Project:**
+4. **Start Project:**
 
    ```bash
-   scrapy startproject hotels_crawler
    cd hotels_crawler
    ```
 
@@ -97,19 +96,26 @@ scrapy crawl hotel_crawler
 scrapyAssignment/
 │
 ├── hotels_crawler/
-│   ├── __init__.py
-│   ├── items.py
-│   ├── middlewares.py
-│   ├── pipelines.py
-│   ├── settings.py
-│   ├── models.py
-│   ├── database.py
-│   └── spiders/
-│       └── hotels_crawler.py
-├── images/                  # Directory where images are stored
-├── config.py                # Python configuration file (optional)
-├── requirements.txt         # List of project dependencies
-└── README.md                # Project documentation
+│   ├── hotels_crawler/
+│   │   ├── __init__.py
+│   │   ├── items.py
+│   │   ├── middlewares.py
+│   │   ├── pipelines.py
+│   │   ├── settings.py
+│   │   ├── models.py
+│   │   ├── database.py
+│   │   └── spiders/
+│   │       └── hotels_crawler.py
+│   │
+│   ├── images/               # This folder created automatically when spider run
+│   ├── config.py             # Python configuration file (optional)
+│   ├── scrapy.cfg            # Scrapy configuration file
+│
+├── .gitignore                # File specifying untracked files to ignore
+├── requirements.txt          # List of project dependencies
+└── README.md                 # Project documentation
+
+
 
 
 ```
