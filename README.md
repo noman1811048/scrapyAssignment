@@ -86,7 +86,7 @@ This project is a web scraper built using Scrapy to gather property information 
 To run the spider and scrape data, use the following command:
 
 ```bash
-scrapy crawl hotel_crawler
+scrapy crawl hotels_crawler
 ```
 
 ## Project Structure
